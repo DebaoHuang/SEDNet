@@ -8,3 +8,6 @@
 *.pyc
 datasets/vkitti
 datasets/__pycache__
+datasets/predictions
+.idea/
+.vscode/
