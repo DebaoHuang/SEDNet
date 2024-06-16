@@ -6,3 +6,5 @@
 *.vision25
 *.pyc
 *.pyc
+datasets/vkitti
+datasets/__pycache__

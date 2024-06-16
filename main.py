@@ -23,22 +23,22 @@ cudnn.benchmark = True
 
 # model params
 parser = argparse.ArgumentParser(description='Group-wise Correlation Stereo Network (GwcNet)')
-parser.add_argument('--model', default='gwcnet-g', help='select a model structure', choices=__models__.keys())
+parser.add_argument('--model', default='gwcnet-gcs', help='select a model structure', choices=__models__.keys())
 parser.add_argument('--maxdisp', type=int, default=192, help='maximum disparity') # sclar down disp with H and W
 parser.add_argument('--inliers', type=int, default=3, help='how many std to include for inliers')
-parser.add_argument('--bin_scale', type=str, default='line', help='how to create the distribution, line or log')
+parser.add_argument('--bin_scale', type=str, default='log', help='how to create the distribution, line or log')
 parser.add_argument('--n_bins', type=int, default=11, help='how many bins to create the distribution')
-parser.add_argument('--loss_type', type=str, required=True, help='define the componet of loss')
+parser.add_argument('--loss_type', type=str, help='define the componet of loss')
 parser.add_argument('--mask', type=str, default='soft', help='type of mask assignment',choices=['soft','hard'])
 
 # dataset
-parser.add_argument('--dataset', required=True, help='dataset name', choices=__datasets__.keys())
+parser.add_argument('--dataset', help='dataset name', choices=__datasets__.keys())
 parser.add_argument('--zoom', type=float, default=1.0, help='scaler for zoom in/out the image')
 parser.add_argument('--crop_w', type=int, default=0, help='random crop width')
 parser.add_argument('--crop_h', type=int, default=0, help='random crop height')
-parser.add_argument('--datapath', required=True, help='data path')
-parser.add_argument('--trainlist', required=True, help='training list')
-parser.add_argument('--testlist', required=True, help='testing list')
+parser.add_argument('--datapath', help='data path')
+parser.add_argument('--trainlist', help='training list')
+parser.add_argument('--testlist', help='testing list')
 
 # training schedule
 parser.add_argument('--training', action='store_true', help='turn to training mode if presents.')
@@ -46,20 +46,33 @@ parser.add_argument('--resume', action='store_true', help='continue training the
 parser.add_argument('--loadckpt', help='load the weights from a specific checkpoint')
 parser.add_argument('--seed', type=int, default=999, metavar='S', help='random seed (default: 1)')
 parser.add_argument('--device_id', default=[0], type=int, nargs='+', help='gpu indices')
-parser.add_argument('--batch_size', type=int, default=2, help='training batch size')
-parser.add_argument('--test_batch_size', type=int, default=2, help='testing batch size')
-parser.add_argument('--epochs', type=int, required=True, help='number of epochs to train')
+parser.add_argument('--batch_size', type=int, default=8, help='training batch size')
+parser.add_argument('--test_batch_size', type=int, default=1, help='testing batch size')
+parser.add_argument('--epochs', type=int, help='number of epochs to train')
 parser.add_argument('--lr', type=float, default=0.0001, help='base learning rate')
-parser.add_argument('--lrepochs', type=str, required=True, help='the epochs to decay lr: the downscale rate')
+parser.add_argument('--lrepochs', type=str, help='the epochs to decay lr: the downscale rate')
 
 # save outputs
-parser.add_argument('--logdir', required=True, help='the directory to save logs and checkpoints')
+parser.add_argument('--logdir', help='the directory to save logs and checkpoints')
 parser.add_argument('--summary_freq', type=int, default=10, help='the frequency of saving summary')
 parser.add_argument('--save_freq', type=int, default=1, help='the frequency of saving checkpoint')
 parser.add_argument('--save_test', action='store_true', help='save test outputs if presents.')
 
 # parse arguments, set seeds
 args = parser.parse_args()
+
+args.dataset = "vkitti2"
+args.datapath = "/home/degbo/Desktop/SEDNet/datasets/vkitti/"
+args.trainlist = "./filenames/vkitti2_train.txt"
+args.testlist = "./filenames/vkitti2_test_morning.txt"
+args.epochs = 1
+args.lrepochs = " 7,20,30,40,50:5"
+args.loss_type = "UC"
+args.save_test = True
+args.logdir = "/home/degbo/Desktop/SEDNet/rs/checkpoints/vkitti2/gwcnet-gc-elu-dropout-l1-logs-kl-3std-lr1e-4/morning/"
+args.loadckpt = "/home/degbo/Desktop/SEDNet/checkpoints/vkitti2/sednet-gwc-3std-lr1e-4/checkpoint_000025.ckpt"
+
+
 torch.cuda.empty_cache()
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed(args.seed)
