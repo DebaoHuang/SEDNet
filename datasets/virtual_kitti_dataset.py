@@ -3,7 +3,7 @@ import random
 from torch.utils.data import Dataset
 from PIL import Image
 import numpy as np
-from datasets.data_io import get_transform_kitti, read_all_lines
+from datasets.data_io import get_transform_kitti, read_all_lines, get_transform
 import cv2
 
 
@@ -27,7 +27,9 @@ class VIRTUALKITTIDataset2(Dataset):
             return left_images, right_images, disp_images
 
     def load_image(self, filename):
-        return Image.open(filename).convert('RGB')
+        grayscale_image = Image.open(filename).convert("L")
+        rgb_image = Image.merge("RGB", (grayscale_image, grayscale_image, grayscale_image))
+        return rgb_image
 
     def load_disp(self, filename):
         depth_gt = cv2.imread(filename, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
@@ -72,17 +74,21 @@ class VIRTUALKITTIDataset2(Dataset):
                     "disparity": disparity}
         else:
             w, h = left_img.size # 1242 x 375
+            w = int(w/2)
+            h = int(h/2)
 
             # normalize
-            processed = get_transform_kitti()
+            processed = get_transform(w,h)
             left_img = processed(left_img).numpy()
             right_img = processed(right_img).numpy()
 
+            h_pad = int(np.ceil(h/32)*32)
+            w_pad = int(np.ceil(w/32)*32)
 
             # pad to size 1248x384
-            top_pad = 384 - h
-            right_pad = 1248 - w
-            assert top_pad > 0 and right_pad > 0
+            top_pad = h_pad - h
+            right_pad = w_pad - w
+            assert top_pad >= 0 and right_pad >= 0
             # pad images
             left_img = np.lib.pad(left_img, ((0, 0), (top_pad, 0), (0, right_pad)), mode='constant', constant_values=0)
             right_img = np.lib.pad(right_img, ((0, 0), (top_pad, 0), (0, right_pad)), mode='constant',
@@ -105,4 +111,5 @@ class VIRTUALKITTIDataset2(Dataset):
                         "top_pad": top_pad,
                         "right_pad": right_pad,
                         "left_filename": self.left_filenames[index],
-                        "right_filename": self.right_filenames[index]}
+                        "right_filename": self.right_filenames[index],
+                        "mask":left_img[0]==left_img[0][0,0]}

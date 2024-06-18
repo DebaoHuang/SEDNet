@@ -24,8 +24,10 @@ parser.add_argument('--loadckpt', help='load the weights from a specific checkpo
 args = parser.parse_args()
 
 args.dataset = "vkitti2"
-args.datapath = "/home/degbo/Desktop/SEDNet/datasets/vkitti/"
-args.testlist = "./filenames/vkitti2_test_morning.txt"
+# args.datapath = "/home/degbo/Desktop/SEDNet/datasets/vkitti/"
+# args.testlist = "./filenames/vkitti2_test_morning.txt"
+args.datapath = "/media/degbo/T7 Shield/uncertainty/Dataset-1/Processed/MVS/group1/dense/Point_clouds/temp_folder_cluster/2021-04-23_13-18-38_S2223314_DxO_res/"
+args.testlist = "./filenames/UseGeo.txt"
 args.loadckpt = "/home/degbo/Desktop/SEDNet/checkpoints/vkitti2/sednet-gwc-3std-lr1e-4/checkpoint_000025.ckpt"
 
 
@@ -50,24 +52,31 @@ def test():
     for batch_idx, sample in enumerate(TestImgLoader):
         start_time = time.time()
         disp_est_np = tensor2numpy(test_sample(sample))
+        disp_est_np[sample['mask']] = 0
+        gray_np = tensor2numpy(sample["left"])
         uncert_est_np = tensor2numpy(test_sample_uncertainty(sample))
+        uncert_est_np[sample['mask']] = 0
         top_pad_np = tensor2numpy(sample["top_pad"])
         right_pad_np = tensor2numpy(sample["right_pad"])
         left_filenames = sample["left_filename"]
         print('Iter {}/{}, time = {:3f}'.format(batch_idx, len(TestImgLoader),
                                                 time.time() - start_time))
 
-        for disp_est, uncert_est, top_pad, right_pad, fn in zip(disp_est_np, uncert_est_np, top_pad_np, right_pad_np, left_filenames):
+        for disp_est,gray, uncert_est, top_pad, right_pad, fn in zip(disp_est_np,gray_np, uncert_est_np, top_pad_np, right_pad_np, left_filenames):
             assert len(disp_est.shape) == 2
             disp_est = np.array(disp_est[top_pad:, :-right_pad], dtype=np.float32)
             uncert_est = np.array(uncert_est[top_pad:, :-right_pad], dtype=np.float32)
+            gray = np.array(gray[top_pad:, :-right_pad], dtype=np.float32)
             fn = os.path.join("predictions", fn.split('/')[-1])
-            fn1 = fn.replace(".jpg","_disp.tif")
+            fn1 = fn.replace(".tif","_disp.tif")
             print("saving to", fn1, disp_est.shape)
             disp_est_uint = np.round(disp_est * 256).astype(np.uint16)
             io.imsave(fn1, disp_est)
-            fn2 = fn.replace(".jpg","_uncert.tif")
-            io.imsave(fn2, uncert_est)
+            fn2 = fn.replace(".tif","_uncert.tif")
+            io.imsave(fn2, abs(uncert_est))
+            fn3 = fn.replace(".tif","_gray.tif")
+            io.imsave(fn3, gray)
+            tmp = 1
 
 
 # test one sample
