@@ -27,9 +27,7 @@ class VIRTUALKITTIDataset2(Dataset):
             return left_images, right_images, disp_images
 
     def load_image(self, filename):
-        grayscale_image = Image.open(filename).convert("L")
-        rgb_image = Image.merge("RGB", (grayscale_image, grayscale_image, grayscale_image))
-        return rgb_image
+        return Image.open(filename).convert("RGB")
 
     def load_disp(self, filename):
         depth_gt = cv2.imread(filename, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
@@ -74,8 +72,8 @@ class VIRTUALKITTIDataset2(Dataset):
                     "disparity": disparity}
         else:
             w, h = left_img.size # 1242 x 375
-            w = int(w/2)
-            h = int(h/2)
+            # w = int(w/8)
+            # h = int(h/8)
 
             # normalize
             processed = get_transform(w,h)
