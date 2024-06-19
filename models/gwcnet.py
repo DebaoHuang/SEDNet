@@ -3,6 +3,7 @@ import torch.utils.data
 from models.submodule import *
 import math
 import torch.nn.functional as F
+import numpy as np
 
 class feature_extraction(nn.Module):
     def __init__(self, concat_feature=False, concat_feature_channel=12):
@@ -144,6 +145,8 @@ class GwcNet(nn.Module):
         self.maxdisp = maxdisp
         self.use_concat_volume = use_concat_volume
         self.est_uncert = est_uncert
+        self.min_disp = 0
+        self.disp_interval = 192
 
         self.num_groups = 40
 
@@ -209,14 +212,16 @@ class GwcNet(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, left, right):
+        self.maxdisp = max(self.maxdisp,self.disp_interval+20)
+        self.maxdisp  = int(np.ceil(self.maxdisp /4)*4)
         features_left = self.feature_extraction(left)
         features_right = self.feature_extraction(right)
 
         gwc_volume = build_gwc_volume(features_left["gwc_feature"], features_right["gwc_feature"], self.maxdisp // 4,
-                                      self.num_groups)
+                                      self.num_groups, self.min_disp // 4)
         if self.use_concat_volume:
             concat_volume = build_concat_volume(features_left["concat_feature"], features_right["concat_feature"],
-                                                self.maxdisp // 4)
+                                                self.maxdisp // 4, self.min_disp // 4)
             volume = torch.cat((gwc_volume, concat_volume), 1)
         else:
             volume = gwc_volume

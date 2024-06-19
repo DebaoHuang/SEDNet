@@ -10,7 +10,7 @@ import cv2
 class VIRTUALKITTIDataset2(Dataset):
     def __init__(self, datapath, list_filename, training, args):
         self.datapath = datapath
-        self.left_filenames, self.right_filenames, self.disp_filenames = self.load_path(list_filename)
+        self.left_filenames, self.right_filenames, self.min_disps, self.disp_intervals, self.disp_filenames = self.load_path(list_filename)
         self.training = training
         if self.training:
             assert self.disp_filenames is not None
@@ -21,10 +21,14 @@ class VIRTUALKITTIDataset2(Dataset):
         left_images = [x[0] for x in splits]
         right_images = [x[1] for x in splits]
         if len(splits[0]) == 2:  # ground truth not available
-            return left_images, right_images, None
+            return left_images, right_images, None, None, None
+        elif len(splits[0])==4:
+            min_disps = [float(x[2]) for x in splits]
+            disp_intervals = [float(x[3]) for x in splits]
+            return left_images, right_images, min_disps, disp_intervals, None
         else:
             disp_images = [x[2] for x in splits]
-            return left_images, right_images, disp_images
+            return left_images, right_images, None, None, disp_images
 
     def load_image(self, filename):
         return Image.open(filename).convert("RGB")
@@ -72,8 +76,9 @@ class VIRTUALKITTIDataset2(Dataset):
                     "disparity": disparity}
         else:
             w, h = left_img.size # 1242 x 375
-            # w = int(w/8)
-            # h = int(h/8)
+            scale = 1
+            w = int(w/scale)
+            h = int(h/scale)
 
             # normalize
             processed = get_transform(w,h)
@@ -86,7 +91,11 @@ class VIRTUALKITTIDataset2(Dataset):
             # pad to size 1248x384
             top_pad = h_pad - h
             right_pad = w_pad - w
-            assert top_pad >= 0 and right_pad >= 0
+            if top_pad == 0:
+                top_pad = 32
+            if right_pad == 0:
+                right_pad = 32
+            assert top_pad > 0 and right_pad > 0
             # pad images
             left_img = np.lib.pad(left_img, ((0, 0), (top_pad, 0), (0, right_pad)), mode='constant', constant_values=0)
             right_img = np.lib.pad(right_img, ((0, 0), (top_pad, 0), (0, right_pad)), mode='constant',
@@ -110,4 +119,6 @@ class VIRTUALKITTIDataset2(Dataset):
                         "right_pad": right_pad,
                         "left_filename": self.left_filenames[index],
                         "right_filename": self.right_filenames[index],
-                        "mask":left_img[0]==left_img[0][0,0]}
+                        "mask":left_img[0]==left_img[0][0,0],
+                        "min_disp":self.min_disps[index]/float(scale),
+                        "disp_interval":self.disp_intervals[index]/float(scale)}

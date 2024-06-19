@@ -26,15 +26,15 @@ args = parser.parse_args()
 args.dataset = "vkitti2"
 # args.datapath = "/home/degbo/Desktop/SEDNet/datasets/vkitti/"
 # args.testlist = "./filenames/vkitti2_test_morning.txt"
-args.datapath = "/media/degbo/T7 Shield/uncertainty/Dataset-1/Processed/rectifited/"
-args.testlist = "/media/degbo/T7 Shield/uncertainty/Dataset-1/Processed/rectifited/usegeo.txt"
-args.loadckpt = "/home/degbo/Desktop/SEDNet/checkpoints/vkitti2/sednet-gwc-3std-lr1e-4/checkpoint_000025.ckpt"
+args.datapath = "/research/GDA/degbo/rectifited/"
+args.testlist = "/research/GDA/degbo/rectifited/usegeo.txt"
+args.loadckpt = "/local/storage/nvme0n1/degbo/SEDNet/checkpoints/vkitti2/sednet-gwc-3std-lr1e-4/checkpoint_000025.ckpt"
 
 
 # dataset, dataloader
 StereoDataset = __datasets__[args.dataset]
 test_dataset = StereoDataset(args.datapath, args.testlist, False, args)
-TestImgLoader = DataLoader(test_dataset, 1, shuffle=False, num_workers=4, drop_last=False)
+TestImgLoader = DataLoader(test_dataset, 1, shuffle=False, num_workers=0, drop_last=False)
 
 # model, optimizer
 model = __models__[args.model](args.maxdisp)
@@ -66,22 +66,25 @@ def test():
             disp_est = np.array(disp_est[top_pad:, :-right_pad], dtype=np.float32)
             uncert_est = np.array(uncert_est[top_pad:, :-right_pad], dtype=np.float32)
             # gray = np.array(gray[:,top_pad:, :-right_pad], dtype=np.float32)
-            fn = os.path.join("predictions", fn.split('/')[-1])
+            fn = os.path.join(args.datapath, fn.split('/')[-1])
             fn1 = fn.replace(".tif","_disp.tif")
             print("saving to", fn1, disp_est.shape)
-            disp_est_uint = np.round(disp_est * 256).astype(np.uint16)
-            io.imsave(fn1, disp_est)
+            offset = max(math.floor(tensor2float(sample['min_disp']))-10,0)
+            offset  = int(np.ceil(offset /4)*4)
+            io.imsave(fn1, offset+disp_est)
             fn2 = fn.replace(".tif","_uncert.tif")
             io.imsave(fn2, abs(uncert_est))
             # fn3 = fn.replace(".tif","_gray.tif")
             # io.imsave(fn3, gray)
-            # tmp = 1
 
 
 # test one sample
 @make_nograd_func
 def test_sample(sample):
     model.eval()
+    model.module.min_disp = max(math.floor(tensor2float(sample['min_disp']))-10,0)
+    model.module.min_disp  = int(np.ceil(model.module.min_disp /4)*4)
+    model.module.disp_interval = math.ceil(tensor2float(sample['disp_interval']))
     output = model(sample['left'].cuda(), sample['right'].cuda())
     disp_ests = output['disp']
     return disp_ests[-1]
@@ -89,6 +92,9 @@ def test_sample(sample):
 @make_nograd_func
 def test_sample_uncertainty(sample):
     model.eval()
+    model.module.min_disp = max(math.floor(tensor2float(sample['min_disp']))-10,0)
+    model.module.min_disp  = int(np.ceil(model.module.min_disp /4)*4)
+    model.module.disp_interval = math.ceil(tensor2float(sample['disp_interval']))
     output = model(sample['left'].cuda(), sample['right'].cuda())
     uncert_ests = output['uncert']
     return uncert_ests[-1]
